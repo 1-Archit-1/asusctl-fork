@@ -1,5 +1,50 @@
 # `asusctl` for ASUS ROG
 
+> **This is a personal fork of [OpenGamingCollective/asusctl](https://github.com/OpenGamingCollective/asusctl) by [1-Archit-1](https://github.com/1-Archit-1).**
+>
+> ### Changes from upstream
+> - **Fix: `asusd-user` crash on startup** — the proxy in `rog-dbus/src/zbus_aura.rs` had a hardcoded DBus path `/xyz/ljones/Aura` that doesn't match the dynamic path `asusd` actually registers at runtime (e.g. `/xyz/ljones/aura/19b6_2_3`). Fixed by adding `find_iface_blocking()` to `rog-dbus/src/lib.rs` and using it in `asusd-user/src/daemon.rs` to discover the correct path at runtime. See [issue report](https://github.com/1-Archit-1/asusctl-fork/issues) for full details.
+>
+> ### Fresh install on Linux Mint
+> Use [asus-linux-mint](https://github.com/andreas-glaser/asus-linux-mint) — an installer script for Linux Mint that automates building and installing `asusctl` and `supergfxctl`. To use this fork instead of upstream, edit the `install_asusctl()` function in `install-asus-linux.sh` and point `ASUSCTL_SRC` at your local clone of this fork.
+>
+> ### Rebuilding and installing after code changes
+>
+> **After changing `asusd-user`:**
+> ```bash
+> cd /home/rhaegar/asusctl
+> source ~/.cargo/env
+> cargo build --release -p asusd-user
+> sudo install -m 0755 target/release/asusd-user /usr/bin/asusd-user
+> systemctl --user restart asusd-user.service
+> ```
+>
+> **After changing `asusd`:**
+> ```bash
+> cd /home/rhaegar/asusctl
+> source ~/.cargo/env
+> cargo build --release -p asusd
+> sudo install -m 0755 target/release/asusd /usr/bin/asusd
+> sudo systemctl restart asusd.service
+> ```
+>
+> **After changing `asusctl` (CLI):**
+> ```bash
+> cd /home/rhaegar/asusctl
+> source ~/.cargo/env
+> cargo build --release -p asusctl
+> sudo install -m 0755 target/release/asusctl /usr/bin/asusctl
+> ```
+>
+> ### Pulling upstream updates into this fork
+> ```bash
+> git fetch upstream
+> git merge upstream/main
+> git push myfork main
+> ```
+> Resolve any merge conflicts manually, then rebuild and reinstall the affected binaries as above.
+
+
 ## Links
 
 <p align="center"><a href="https://www.patreon.com/bePatron?u=7602281"><img src="extra/icons/patreon-button.svg" width="190" height="32" alt="Become a Patron" /></a> <a href="https://ko-fi.com/V7V5CLU67"><img src="extra/icons/ko-fi-button.svg" width="190" height="32" alt="Support me on Ko-fi" /></a> <a href="https://asus-linux.org/"><img src="extra/icons/rog-logo-button.svg" width="190" height="32" alt="Asus Linux Website" /></a> <a href="https://discord.gg/B8GftRW2Hd"><img src="extra/icons/discord-button.svg" width="190" height="32" alt="Discord" /></a></p>
