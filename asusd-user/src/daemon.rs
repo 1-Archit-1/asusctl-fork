@@ -12,7 +12,7 @@ use rog_aura::aura_detection::LedSupportData;
 use rog_aura::keyboard::KeyLayout;
 use rog_dbus::zbus_anime::AnimeProxyBlocking;
 use rog_dbus::zbus_aura::AuraProxyBlocking;
-use rog_dbus::{list_iface_blocking, DBUS_NAME};
+use rog_dbus::{find_iface_blocking, list_iface_blocking, DBUS_NAME};
 use zbus::Connection;
 
 #[cfg(not(feature = "local_data"))]
@@ -150,7 +150,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .unwrap_or_else(|_| KeyLayout::default_layout());
 
-        let aura_proxy_blocking = AuraProxyBlocking::new(&conn)?;
+        let aura_proxy_blocking = match find_iface_blocking::<AuraProxyBlocking>("xyz.ljones.Aura") {
+            Ok(mut proxies) if !proxies.is_empty() => proxies.remove(0),
+            Ok(_) => {
+                error!("No Aura interface found on DBus — keyboard backlight unavailable");
+                return Ok(());
+            }
+            Err(e) => {
+                error!("Failed to find Aura DBus interface: {e}");
+                return Ok(());
+            }
+        };
         tokio::task::spawn_blocking(move || loop {
             aura_config.aura.next_state(&layout);
             let packets = aura_config.aura.create_packets();
