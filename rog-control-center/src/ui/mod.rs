@@ -2,6 +2,7 @@ pub mod setup_anime;
 pub mod setup_aura;
 pub mod setup_fans;
 pub mod setup_gpu;
+pub mod setup_gpu_supergfx;
 pub mod setup_slash;
 pub mod setup_system;
 
@@ -186,8 +187,19 @@ pub fn setup_window(
         setup_fan_curve_page(&ui, config.clone());
     }
 
-    // Populate GPU page choices and callbacks
-    setup_gpu::setup_gpu_page(&ui);
+    // Populate GPU page choices and callbacks.
+    // Use supergfxctl if supergfxd is running, otherwise fall back to asusd firmware attributes.
+    let use_supergfx = std::process::Command::new("systemctl")
+        .args(["is-active", "--quiet", "supergfxd.service"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    if use_supergfx {
+        setup_gpu_supergfx::setup_gpu_supergfx_page(&ui);
+    } else {
+        setup_gpu::setup_gpu_page(&ui);
+    }
 
     ui
 }
