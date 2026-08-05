@@ -45,6 +45,28 @@
 > Resolve any merge conflicts manually, then rebuild and reinstall the affected binaries as above.
 
 
+## How GPU mode switching works
+
+GPU mode switching uses two firmware attributes — `dgpu_disable` and `gpu_mux_mode` — which are ASUS ACPI/WMI calls exposed to the OS by the `asus-wmi` kernel driver. `asusd` reads and writes these via the **`asus-armoury` firmware-attributes interface** (primary path: `/sys/class/firmware-attributes/asus-armoury/attributes/`), falling back to the legacy `asus-nb-wmi` sysfs path (`/sys/devices/platform/asus-nb-wmi/`) only if firmware-attributes is unavailable. The `asus-nb-wmi` attributes are deprecated and compiled out in kernels built with `CONFIG_ASUS_WMI_DEPRECATED_ATTRS=n`, so firmware-attributes is the forward-compatible path.
+
+Three modes are supported, backed by two attributes:
+
+| Mode | `dgpu_disable` | `gpu_mux_mode` | Effect |
+|------|--------------|--------------|--------|
+| Integrated | 1 | 1 | iGPU only, dGPU powered off |
+| Hybrid | 0 | 1 | Optimus / dynamic switching |
+| Ultimate | 0 | 0 | dGPU drives displays directly (MUX) |
+
+Ultimate is only shown if the hardware exposes `gpu_mux_mode`. When you set a mode, the value is **queued in memory** by `asusd` and written to firmware at shutdown by the `asus-shutdown` service. This service holds a systemd logind inhibitor lock, waits for the dGPU to go idle, stops the NVIDIA driver stack if present, writes the queued values, then releases the lock. Changes take effect on the next boot. **The queue is in-memory only** — a hard power-off or kernel panic before shutdown will silently discard a pending mode change.
+
+### BIOS: Armoury Crate Control Interface
+
+This BIOS setting must remain **enabled**. It controls whether ASUS's WMI firmware interface is exposed to the OS. Disabling it removes the sysfs nodes that `asusd` depends on for GPU switching, fan curves, TDP/PPT control, battery charge limits, and keyboard backlight. Despite the branding, it has no relation to the Windows Armoury Crate software — asusctl is the Linux equivalent that uses the same underlying interface.
+
+### Relationship with supergfxctl
+
+`supergfxctl` is a complementary tool that handles live GPU mode switching (Hybrid ↔ Integrated without a reboot, for supported transitions) by directly managing kernel modules, PCI hotplug, and the display manager. It writes to the `asus-nb-wmi` sysfs nodes **only** — it has no firmware-attributes support. On kernels where `asus-nb-wmi` attributes are compiled out, supergfxctl loses access to `dgpu_disable`/`gpu_mux_mode` while asusctl continues to work. For AMD dGPUs, supergfxctl's module unload/kill step is a no-op (stubbed `TODO`) — the ACPI `dgpu_disable` call alone handles the switch, which works fine because `amdgpu` tolerates hotplug far more gracefully than the NVIDIA driver stack.
+
 ## Links
 
 <p align="center"><a href="https://www.patreon.com/bePatron?u=7602281"><img src="extra/icons/patreon-button.svg" width="190" height="32" alt="Become a Patron" /></a> <a href="https://ko-fi.com/V7V5CLU67"><img src="extra/icons/ko-fi-button.svg" width="190" height="32" alt="Support me on Ko-fi" /></a> <a href="https://asus-linux.org/"><img src="extra/icons/rog-logo-button.svg" width="190" height="32" alt="Asus Linux Website" /></a> <a href="https://discord.gg/B8GftRW2Hd"><img src="extra/icons/discord-button.svg" width="190" height="32" alt="Discord" /></a></p>
